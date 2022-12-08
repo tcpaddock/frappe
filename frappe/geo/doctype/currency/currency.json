@@ -45,7 +45,7 @@
   {
    "description": "1 Currency = [?] Fraction\nFor e.g. 1 USD = 100 Cent",
    "fieldname": "fraction_units",
-   "fieldtype": "Int",
+   "fieldtype": "Long Int",
    "in_list_view": 1,
    "label": "Fraction Units"
   },

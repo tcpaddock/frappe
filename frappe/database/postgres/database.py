@@ -115,7 +115,7 @@ class PostgresDatabase(PostgresExceptionUtil, Database):
 	def setup_type_map(self):
 		self.db_type = "postgres"
 		self.type_map = {
-			"Currency": ("decimal", "21,9"),
+			"Currency": ("decimal", "21,12"),
 			"Int": ("bigint", None),
 			"Long Int": ("bigint", None),
 			"Float": ("decimal", "21,9"),
