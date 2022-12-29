@@ -483,6 +483,9 @@ Object.assign(frappe.utils, {
 			case "dateIso":
 				regExp = /^(\d{4})\D?(0[1-9]|1[0-2])\D?([12]\d|0[1-9]|3[01])$/;
 				break;
+			case "chiaCoinHash":
+				regExp = /^[0-9A-Fa-f]{64}$/;
+				break;
 			default:
 				return false;
 		}

@@ -54,6 +54,10 @@ window.validate_url = function (txt) {
 	return frappe.utils.validate_type(txt, "url");
 };
 
+window.validate_chia_coin_hash = function (txt) {
+	return frappe.utils.validate_type(txt, "chiaCoinHash");
+};
+
 window.nth = function (number) {
 	number = cint(number);
 	var s = "th";

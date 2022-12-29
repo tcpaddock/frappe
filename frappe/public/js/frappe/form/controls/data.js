@@ -73,6 +73,10 @@ frappe.ui.form.ControlData = class ControlData extends frappe.ui.form.ControlInp
 		if (this.df.options == "Barcode") {
 			this.setup_barcode_field();
 		}
+
+		if (this.df.options == "Chia Coin Hash") {
+			this.setup_chia_coin_hash_field();
+		}
 	}
 
 	setup_url_field() {
@@ -104,6 +108,49 @@ frappe.ui.form.ControlData = class ControlData extends frappe.ui.form.ControlInp
 			if (inputValue && validate_url(inputValue)) {
 				this.$link.toggle(true);
 				this.$link_open.attr("href", this.get_input_value());
+			} else {
+				this.$link.toggle(false);
+			}
+		});
+
+		this.$input.on("blur", () => {
+			// if this disappears immediately, the user's click
+			// does not register, hence timeout
+			setTimeout(() => {
+				this.$link.toggle(false);
+			}, 500);
+		});
+	}
+
+	setup_chia_coin_hash_field() {
+		this.$wrapper.find(".control-input").append(
+			`<span class="link-btn">
+				<a class="btn-open no-decoration" title="${__("Open Link")}" target="_blank">
+					${frappe.utils.icon("link-url", "sm")}
+				</a>
+			</span>`
+		);
+
+		this.$link = this.$wrapper.find(".link-btn");
+		this.$link_open = this.$link.find(".btn-open");
+
+		this.$input.on("focus", () => {
+			setTimeout(() => {
+				let inputValue = this.get_input_value();
+
+				if (inputValue && validate_chia_hash(inputValue)) {
+					this.$link.toggle(true);
+					this.$link_open.attr("href", `https://www.spacescan.io/coin/0x${this.get_input_value().toLowerCase()}`);
+				}
+			}, 500);
+		});
+
+		this.$input.bind("input", () => {
+			let inputValue = this.get_input_value();
+
+			if (inputValue && validate_chia_hash(inputValue)) {
+				this.$link.toggle(true);
+				this.$link_open.attr("href", `https://www.spacescan.io/coin/0x${this.get_input_value().toLowerCase()}`);
 			} else {
 				this.$link.toggle(false);
 			}
@@ -282,6 +329,9 @@ frappe.ui.form.ControlData = class ControlData extends frappe.ui.form.ControlInp
 			}
 		} else if (this.df.options == "URL") {
 			this.df.invalid = !validate_url(v);
+			return v;
+		} else if (this.df.options == "Chia Hash") {
+			this.df.invalid = !validate_chia_hash(v);
 			return v;
 		} else {
 			return v;
