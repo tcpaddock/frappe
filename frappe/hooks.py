@@ -8,7 +8,7 @@ source_link = "https://github.com/frappe/frappe"
 app_license = "MIT"
 app_logo_url = "/assets/frappe/images/frappe-framework-logo.svg"
 
-develop_version = "14.x.x-develop"
+develop_version = "15.x.x-develop"
 
 app_email = "developers@frappe.io"
 
@@ -140,7 +140,6 @@ doc_events = {
 	"*": {
 		"on_update": [
 			"frappe.desk.notifications.clear_doctype_notifications",
-			"frappe.core.doctype.activity_log.feed.update_feed",
 			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions",
 			"frappe.automation.doctype.assignment_rule.assignment_rule.apply",
 			"frappe.core.doctype.file.utils.attach_files_to_document",
@@ -367,3 +366,21 @@ override_whitelisted_methods = {
 	"frappe.core.doctype.file.file.move_file": "frappe.core.api.file.move_file",
 	"frappe.core.doctype.file.file.zip_files": "frappe.core.api.file.zip_files",
 }
+
+ignore_links_on_delete = [
+	"Communication",
+	"ToDo",
+	"DocShare",
+	"Email Unsubscribe",
+	"Activity Log",
+	"File",
+	"Version",
+	"Document Follow",
+	"Comment",
+	"View Log",
+	"Tag Link",
+	"Notification Log",
+	"Email Queue",
+	"Document Share Key",
+	"Integration Request",
+]

@@ -57,7 +57,7 @@ class ConnectedApp(Document):
 	def initiate_web_application_flow(self, user=None, success_uri=None):
 		"""Return an authorization URL for the user. Save state in Token Cache."""
 		user = user or frappe.session.user
-		oauth = self.get_oauth2_session(init=True)
+		oauth = self.get_oauth2_session(user, init=True)
 		query_params = self.get_query_params()
 		authorization_url, state = oauth.authorization_url(self.authorization_uri, **query_params)
 		token_cache = self.get_token_cache(user)
@@ -102,8 +102,28 @@ class ConnectedApp(Document):
 	def get_query_params(self):
 		return {param.key: param.value for param in self.query_parameters}
 
+	def get_active_token(self, user=None):
+		user = user or frappe.session.user
+		token_cache = self.get_token_cache(user)
+		if token_cache and token_cache.is_expired():
+			oauth_session = self.get_oauth2_session(user)
 
-@frappe.whitelist(allow_guest=True)
+			try:
+				token = oauth_session.refresh_token(
+					body=f"redirect_uri={self.redirect_uri}",
+					token_url=self.token_uri,
+					refresh_token=token_cache.get_password("refresh_token"),
+				)
+			except Exception:
+				self.log_error("Token Refresh Error")
+				return None
+
+			token_cache.update_data(token)
+
+		return token_cache
+
+
+@frappe.whitelist(methods=["GET"], allow_guest=True)
 def callback(code=None, state=None):
 	"""Handle client's code.
 
@@ -111,8 +131,6 @@ def callback(code=None, state=None):
 	transmit a code that can be used by the local server to obtain an access
 	token.
 	"""
-	if frappe.request.method != "GET":
-		frappe.throw(_("Invalid request method: {}").format(frappe.request.method))
 
 	if frappe.session.user == "Guest":
 		frappe.local.response["type"] = "redirect"
@@ -136,9 +154,15 @@ def callback(code=None, state=None):
 		code=code,
 		client_secret=connected_app.get_password("client_secret"),
 		include_client_id=True,
-		**query_params
+		**query_params,
 	)
 	token_cache.update_data(token)
 
 	frappe.local.response["type"] = "redirect"
 	frappe.local.response["location"] = token_cache.get("success_uri") or connected_app.get_url()
+
+
+@frappe.whitelist()
+def check_active_token(connected_app, connected_user=None):
+	app = frappe.get_doc("Connected App", connected_app)
+	return bool(app.get_active_token(connected_user))

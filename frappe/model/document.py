@@ -18,7 +18,7 @@ from frappe.model.docstatus import DocStatus
 from frappe.model.naming import set_new_name, validate_name
 from frappe.model.utils import is_virtual_doctype
 from frappe.model.workflow import set_workflow_state_on_action, validate_workflow
-from frappe.utils import cstr, date_diff, file_lock, flt, get_datetime_str, now
+from frappe.utils import compare, cstr, date_diff, file_lock, flt, get_datetime_str, now
 from frappe.utils.data import get_absolute_url
 from frappe.utils.global_search import update_global_search
 
@@ -193,9 +193,10 @@ class Document(BaseDocument):
 		self.load_from_db()
 
 	def get_latest(self):
-		if not getattr(self, "latest", None):
-			self.latest = frappe.get_doc(self.doctype, self.name)
-		return self.latest
+		if not getattr(self, "_doc_before_save", None):
+			self.load_doc_before_save()
+
+		return self._doc_before_save
 
 	def check_permission(self, permtype="read", permlevel=None):
 		"""Raise `frappe.PermissionError` if not permitted"""
@@ -1112,8 +1113,6 @@ class Document(BaseDocument):
 		if (self.doctype, self.name) in frappe.flags.currently_saving:
 			frappe.flags.currently_saving.remove((self.doctype, self.name))
 
-		self.latest = None
-
 	def clear_cache(self):
 		frappe.clear_document_cache(self.doctype, self.name)
 
@@ -1300,7 +1299,7 @@ class Document(BaseDocument):
 		df = doc.meta.get_field(fieldname)
 		val2 = doc.cast(val2, df)
 
-		if not frappe.compare(val1, condition, val2):
+		if not compare(val1, condition, val2):
 			label = doc.meta.get_label(fieldname)
 			condition_str = error_condition_map.get(condition, condition)
 			if doc.get("parentfield"):
