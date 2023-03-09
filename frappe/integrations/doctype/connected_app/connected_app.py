@@ -14,6 +14,8 @@ if any((os.getenv("CI"), frappe.conf.developer_mode, frappe.conf.allow_tests)):
 	# Disable mandatory TLS in developer mode and tests
 	os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
+os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+
 
 class ConnectedApp(Document):
 	"""Connect to a remote oAuth Server. Retrieve and store user's access token
@@ -112,7 +114,6 @@ class ConnectedApp(Document):
 				token = oauth_session.refresh_token(
 					body=f"redirect_uri={self.redirect_uri}",
 					token_url=self.token_uri,
-					refresh_token=token_cache.get_password("refresh_token"),
 				)
 			except Exception:
 				self.log_error("Token Refresh Error")
@@ -163,6 +164,7 @@ def callback(code=None, state=None):
 
 
 @frappe.whitelist()
-def check_active_token(connected_app, connected_user=None):
+def has_token(connected_app, connected_user=None):
 	app = frappe.get_doc("Connected App", connected_app)
-	return bool(app.get_active_token(connected_user))
+	token_cache = app.get_token_cache(connected_user or frappe.session.user)
+	return bool(token_cache and token_cache.get_password("access_token", False))

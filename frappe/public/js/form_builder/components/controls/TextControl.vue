@@ -8,10 +8,13 @@ let store = useStore();
 let props = defineProps(["df", "value", "modelValue"]);
 let emit = defineEmits(["update:modelValue"]);
 let slots = useSlots();
-let height = "300px";
-if (props.df.fieldtype == "Small Text") {
-	height = "150px";
-}
+
+let height = computed(() => {
+	if (props.df.fieldtype == "Small Text") {
+		return "150px";
+	}
+	return "300px";
+});
 
 let doctype = ref("");
 let fieldname = ref("");
@@ -21,7 +24,7 @@ let doctype_df = computed(() => {
 	doctypes.value = store
 		.get_updated_fields()
 		.filter(df => df.fieldtype == "Link")
-		.filter(df => df.options && df.fieldname != store.selected_field.fieldname)
+		.filter(df => df.options && df.fieldname != store.form.selected_field.fieldname)
 		.sort((a, b) => a.options.localeCompare(b.options))
 		.map(df => ({
 			label: `${df.options} (${df.fieldname})`,
@@ -110,7 +113,7 @@ watch([() => doctype.value, () => fieldname.value], ([doctype_value, fieldname_v
 			:style="{ height: height, maxHeight: df.max_height ?? '' }"
 			class="form-control"
 			type="text"
-			disabled
+			readonly
 		/>
 		<textarea
 			v-else

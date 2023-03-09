@@ -22,25 +22,8 @@ rights = (
 	"report",
 	"import",
 	"export",
-	"set_user_permissions",
 	"share",
 )
-
-
-def check_admin_or_system_manager(user=None):
-	from frappe.utils.commands import warn
-
-	warn(
-		"The function check_admin_or_system_manager will be deprecated in version 15."
-		'Please use frappe.only_for("System Manager") instead.',
-		category=PendingDeprecationWarning,
-	)
-
-	if not user:
-		user = frappe.session.user
-
-	if ("System Manager" not in frappe.get_roles(user)) and (user != "Administrator"):
-		frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def print_has_permission_check_logs(func):
@@ -48,7 +31,7 @@ def print_has_permission_check_logs(func):
 		frappe.flags["has_permission_check_logs"] = []
 		result = func(*args, **kwargs)
 		self_perm_check = True if not kwargs.get("user") else kwargs.get("user") == frappe.session.user
-		raise_exception = False if kwargs.get("raise_exception") is False else True
+		raise_exception = kwargs.get("raise_exception", True)
 
 		# print only if access denied
 		# and if user is checking his own permission
@@ -429,7 +412,7 @@ def get_roles(user=None, with_standard=True):
 	if not user:
 		user = frappe.session.user
 
-	if user == "Guest":
+	if user == "Guest" or not user:
 		return ["Guest"]
 
 	def get():
@@ -473,29 +456,6 @@ def get_doctypes_with_custom_docperms():
 
 	doctypes = frappe.get_all("Custom DocPerm", fields=["parent"], distinct=1)
 	return [d.parent for d in doctypes]
-
-
-def can_set_user_permissions(doctype, docname=None):
-	# System Manager can always set user permissions
-	if frappe.session.user == "Administrator" or "System Manager" in frappe.get_roles():
-		return True
-
-	meta = frappe.get_meta(doctype)
-
-	# check if current user has read permission for docname
-	if docname and not has_permission(doctype, "read", docname):
-		return False
-
-	# check if current user has a role that can set permission
-	if get_role_permissions(meta).set_user_permissions != 1:
-		return False
-
-	return True
-
-
-def set_user_permission_if_allowed(doctype, name, user, with_message=False):
-	if get_role_permissions(frappe.get_meta(doctype), user).set_user_permissions != 1:
-		add_user_permission(doctype, name, user)
 
 
 def add_user_permission(
@@ -653,7 +613,7 @@ def get_linked_doctypes(dt: str) -> list:
 def get_doc_name(doc):
 	if not doc:
 		return None
-	return doc if isinstance(doc, str) else doc.name
+	return doc if isinstance(doc, str) else str(doc.name)
 
 
 def allow_everything():

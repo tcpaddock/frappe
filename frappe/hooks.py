@@ -194,6 +194,7 @@ scheduler_events = {
 		"frappe.email.doctype.email_account.email_account.notify_unreplied",
 		"frappe.utils.global_search.sync_global_search",
 		"frappe.monitor.flush",
+		"frappe.automation.doctype.reminder.reminder.send_reminders",
 	],
 	"hourly": [
 		"frappe.model.utils.link_count.update_link_count",
@@ -220,7 +221,6 @@ scheduler_events = {
 		"frappe.automation.doctype.auto_repeat.auto_repeat.set_auto_repeat_as_completed",
 		"frappe.email.doctype.unhandled_email.unhandled_email.remove_old_unhandled_emails",
 		"frappe.core.doctype.log_settings.log_settings.run_log_clean_up",
-		"frappe.utils.subscription.enable_manage_subscription",
 	],
 	"daily_long": [
 		"frappe.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_daily",
@@ -356,6 +356,7 @@ global_search_doctypes = {
 }
 
 override_whitelisted_methods = {
+	# Legacy File APIs
 	"frappe.core.doctype.file.file.download_file": "download_file",
 	"frappe.core.doctype.file.file.unzip_file": "frappe.core.api.file.unzip_file",
 	"frappe.core.doctype.file.file.get_attached_images": "frappe.core.api.file.get_attached_images",
@@ -365,6 +366,14 @@ override_whitelisted_methods = {
 	"frappe.core.doctype.file.file.create_new_folder": "frappe.core.api.file.create_new_folder",
 	"frappe.core.doctype.file.file.move_file": "frappe.core.api.file.move_file",
 	"frappe.core.doctype.file.file.zip_files": "frappe.core.api.file.zip_files",
+	# Legacy (& Consistency) OAuth2 APIs
+	"frappe.www.login.login_via_google": "frappe.integrations.oauth2_logins.login_via_google",
+	"frappe.www.login.login_via_github": "frappe.integrations.oauth2_logins.login_via_github",
+	"frappe.www.login.login_via_facebook": "frappe.integrations.oauth2_logins.login_via_facebook",
+	"frappe.www.login.login_via_frappe": "frappe.integrations.oauth2_logins.login_via_frappe",
+	"frappe.www.login.login_via_office365": "frappe.integrations.oauth2_logins.login_via_office365",
+	"frappe.www.login.login_via_salesforce": "frappe.integrations.oauth2_logins.login_via_salesforce",
+	"frappe.www.login.login_via_fairlogin": "frappe.integrations.oauth2_logins.login_via_fairlogin",
 }
 
 ignore_links_on_delete = [
@@ -383,4 +392,23 @@ ignore_links_on_delete = [
 	"Email Queue",
 	"Document Share Key",
 	"Integration Request",
+	"Unhandled Email",
+	"Webhook Request Log",
+]
+
+# Request Hooks
+before_request = [
+	"frappe.recorder.record",
+	"frappe.monitor.start",
+	"frappe.rate_limiter.apply",
+]
+after_request = ["frappe.rate_limiter.update", "frappe.monitor.stop", "frappe.recorder.dump"]
+
+# Background Job Hooks
+before_job = [
+	"frappe.monitor.start",
+]
+after_job = [
+	"frappe.monitor.stop",
+	"frappe.utils.file_lock.release_document_locks",
 ]

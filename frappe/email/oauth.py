@@ -6,10 +6,6 @@ from smtplib import SMTP
 import frappe
 
 
-class OAuthenticationError(Exception):
-	pass
-
-
 class Oauth:
 	def __init__(
 		self,
@@ -32,8 +28,7 @@ class Oauth:
 		if not self._access_token:
 			frappe.throw(
 				frappe._("Please Authorize OAuth for Email Account {}").format(self.email_account),
-				OAuthenticationError,
-				frappe._("OAuth Error"),
+				title=frappe._("OAuth Error"),
 			)
 
 	@property
@@ -41,7 +36,6 @@ class Oauth:
 		return f"user={self.email}\1auth=Bearer {self._access_token}\1\1"
 
 	def connect(self) -> None:
-		"""Connection method with retry on exception for connection errors"""
 		try:
 			if isinstance(self._conn, POP3):
 				self._connect_pop()
@@ -53,16 +47,18 @@ class Oauth:
 				# SMTP
 				self._connect_smtp()
 
-		except Exception as e:
+		except Exception:
 			frappe.log_error(
-				"Email Connection Error - Authentication Failed", str(e), "Email Account", self.email_account
+				"Email Connection Error - Authentication Failed",
+				reference_doctype="Email Account",
+				reference_name=self.email_account,
 			)
 			# raising a bare exception here as we have a lot of exception handling present
 			# where the connect method is called from - hence just logging and raising.
 			raise
 
 	def _connect_pop(self) -> None:
-		# poplib doesn't have AUTH command implementation
+		# NOTE: poplib doesn't have AUTH command implementation
 		res = self._conn._shortcmd(
 			"AUTH {} {}".format(
 				self._mechanism, base64.b64encode(bytes(self._auth_string, "utf-8")).decode("utf-8")

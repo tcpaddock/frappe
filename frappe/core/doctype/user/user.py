@@ -23,7 +23,7 @@ from frappe.utils import (
 	flt,
 	format_datetime,
 	get_formatted_email,
-	get_time_zone,
+	get_system_timezone,
 	has_gravatar,
 	now_datetime,
 	today,
@@ -122,11 +122,20 @@ class User(Document):
 		now = frappe.flags.in_test or frappe.flags.in_install
 		self.send_password_notification(self.__new_password)
 		frappe.enqueue(
-			"frappe.core.doctype.user.user.create_contact", user=self, ignore_mandatory=True, now=now
+			"frappe.core.doctype.user.user.create_contact",
+			user=self,
+			ignore_mandatory=True,
+			now=now,
+			enqueue_after_commit=True,
 		)
 
 		if self.name not in STANDARD_USERS and not self.user_image:
-			frappe.enqueue("frappe.core.doctype.user.user.update_gravatar", name=self.name, now=now)
+			frappe.enqueue(
+				"frappe.core.doctype.user.user.update_gravatar",
+				name=self.name,
+				now=now,
+				enqueue_after_commit=True,
+			)
 
 		# Set user selected timezone
 		if self.time_zone:
@@ -305,12 +314,10 @@ class User(Document):
 			.from_(user_role_doctype)
 			.select(user_doctype.name)
 			.where(user_role_doctype.role == "System Manager")
-			.where(user_doctype.docstatus < 2)
 			.where(user_doctype.enabled == 1)
 			.where(user_role_doctype.parent == user_doctype.name)
 			.where(user_role_doctype.parent.notin(["Administrator", self.name]))
 			.limit(1)
-			.distinct()
 		).run()
 
 	def get_fullname(self):
@@ -582,7 +589,7 @@ class User(Document):
 		if len(email_accounts) != len(set(email_accounts)):
 			frappe.throw(_("Email Account added multiple times"))
 
-	def get_social_login_userid(self, provider):
+	def get_social_login_userid(self, provider: str):
 		try:
 			for p in self.social_logins:
 				if p.provider == provider:
@@ -640,7 +647,7 @@ class User(Document):
 
 	def set_time_zone(self):
 		if not self.time_zone:
-			self.time_zone = get_time_zone()
+			self.time_zone = get_system_timezone()
 
 
 @frappe.whitelist()

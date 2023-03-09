@@ -3,16 +3,24 @@ import Sidebar from "./Sidebar.vue";
 import Tabs from "./Tabs.vue";
 import { computed, onMounted, watch, ref } from "vue";
 import { useStore } from "../store";
-import { onClickOutside } from "@vueuse/core";
+import { onClickOutside, useMagicKeys, whenever } from "@vueuse/core";
 
 let store = useStore();
 
 let should_render = computed(() => {
-	return Object.keys(store.layout).length !== 0;
+	return Object.keys(store.form.layout).length !== 0;
 });
 
 let container = ref(null);
-onClickOutside(container, () => store.selected_field = null);
+onClickOutside(container, () => store.form.selected_field = null);
+
+// cmd/ctrl + s to save the form
+const { meta_s, ctrl_s } = useMagicKeys();
+whenever(() => meta_s.value || ctrl_s.value, () => {
+	if (store.dirty) {
+		store.save_changes();
+	}
+});
 
 function setup_change_doctype_dialog() {
 	store.page.$title_area.on("click", () => {
@@ -45,7 +53,7 @@ function setup_change_doctype_dialog() {
 }
 
 watch(
-	() => store.layout,
+	() => store.form.layout,
 	() => (store.dirty = true),
 	{ deep: true }
 );
@@ -61,7 +69,7 @@ onMounted(() => {
 		v-if="should_render"
 		ref="container"
 		class="form-builder-container"
-		@click="store.selected_field = null"
+		@click="store.form.selected_field = null"
 	>
 		<div class="form-controls" @click.stop>
 			<div class="form-sidebar">
@@ -101,6 +109,12 @@ onMounted(() => {
 		box-shadow: var(--card-shadow);
 		background-color: var(--card-bg);
 
+		:deep(.section-columns.has-one-column .field) {
+			input.form-control, .signature-field {
+				width: calc(50% - 19px);
+			}
+		}
+
 		:deep(.column-container .field.sortable-chosen) {
 			background-color: var(--bg-light-gray);
 			border-radius: var(--border-radius-sm);
@@ -109,7 +123,7 @@ onMounted(() => {
 			font-size: var(--text-sm);
 			cursor: pointer;
 
-			&:has(.drop-it-here) {
+			&:not(.hovered) {
 				position: relative;
 				background-color: transparent;
 				height: 60px;
@@ -169,10 +183,6 @@ onMounted(() => {
 				}
 			}
 
-			.reqd::after {
-				content: " *";
-				color: var(--red-400);
-			}
 			.description,
 			.time-zone {
 				font-size: var(--text-sm);
@@ -187,6 +197,8 @@ onMounted(() => {
 	}
 
 	:deep(.preview) {
+		--field-placeholder-color: var(--fg-bg-color);
+
 		.tab, .column, .field, [data-is-custom="1"] {
 			background-color: var(--fg-color);
 		}
@@ -210,14 +222,32 @@ onMounted(() => {
 				}
 			}
 
+			.section-description {
+				padding-left: 15px;
+			}
+
 			.section-columns {
 				margin-top: 8px;
+
+				&.has-one-column .field {
+					input.form-control, .signature-field {
+						width: calc(50% - 15px);
+					}
+				}
 
 				.section-columns-container {
 					.column {
 						padding-left: 15px;
 						padding-right: 15px;
 						margin: 0;
+
+						.column-header {
+							padding-left: 0;
+						}
+
+						.column-description {
+							margin-left: 0;
+						}
 
 						.field {
 							margin: 0;
@@ -252,7 +282,7 @@ onMounted(() => {
 		}
 	}
 
-	.form-main:not(:has(.tab-header)) :deep(.tab-contents) {
+	.form-main > :deep(div:first-child:not(.tab-header)) {
 		max-height: calc(100vh - 160px);
 	}
 }

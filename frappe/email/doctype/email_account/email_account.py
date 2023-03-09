@@ -82,6 +82,7 @@ class EmailAccount(Document):
 			return
 
 		use_oauth = self.auth_method == "OAuth"
+		validate_oauth = use_oauth and not (self.is_new() and not self.get_oauth_token())
 		self.use_starttls = cint(self.use_imap and self.use_starttls and not self.use_ssl)
 
 		if use_oauth:
@@ -90,7 +91,7 @@ class EmailAccount(Document):
 			self.password = None
 
 		if not frappe.local.flags.in_install and not self.awaiting_password:
-			if use_oauth or self.password or self.smtp_server in ("127.0.0.1", "localhost"):
+			if validate_oauth or self.password or self.smtp_server in ("127.0.0.1", "localhost"):
 				if self.enable_incoming:
 					self.get_incoming_server()
 					self.no_failed = 0
@@ -656,8 +657,6 @@ class EmailAccount(Document):
 		if not email_server:
 			return
 
-		email_server.connect()
-
 		if email_server.imap:
 			try:
 				message = safe_encode(message)
@@ -666,12 +665,9 @@ class EmailAccount(Document):
 				self.log_error("Unable to add to Sent folder")
 
 	def get_oauth_token(self):
-		token = None
 		if self.auth_method == "OAuth":
 			connected_app = frappe.get_doc("Connected App", self.connected_app)
-			token = connected_app.get_active_token(self.connected_user)
-
-		return token
+			return connected_app.get_active_token(self.connected_user)
 
 
 @frappe.whitelist()
@@ -768,22 +764,29 @@ def notify_unreplied():
 
 def pull(now=False):
 	"""Will be called via scheduler, pull emails from all enabled Email accounts."""
+	from frappe.integrations.doctype.connected_app.connected_app import has_token
 
 	if frappe.cache().get_value("workers:no-internet") == True:
 		if test_internet():
 			frappe.cache().set_value("workers:no-internet", False)
-		else:
-			return
+		return
 
 	doctype = frappe.qb.DocType("Email Account")
 	email_accounts = (
 		frappe.qb.from_(doctype)
-		.select(doctype.name)
+		.select(doctype.name, doctype.auth_method, doctype.connected_app, doctype.connected_user)
 		.where(doctype.enable_incoming == 1)
-		.where((doctype.awaiting_password == 0) | (doctype.auth_method == "OAuth"))
+		.where(doctype.awaiting_password == 0)
 		.run(as_dict=1)
 	)
+
 	for email_account in email_accounts:
+		if email_account.auth_method == "OAuth" and not has_token(
+			email_account.connected_app, email_account.connected_user
+		):
+			# don't try to pull from accounts which dont have access token (for Oauth)
+			continue
+
 		if now:
 			pull_from_email_account(email_account.name)
 
@@ -906,7 +909,7 @@ def remove_user_email_inbox(email_account):
 @frappe.whitelist()
 def set_email_password(email_account, password):
 	account = frappe.get_doc("Email Account", email_account)
-	if account.awaiting_password and not account.auth_method == "OAuth":
+	if account.awaiting_password and account.auth_method != "OAuth":
 		account.awaiting_password = 0
 		account.password = password
 		try:
